@@ -1,57 +1,50 @@
-// Source code is decompiled from a .class file using FernFlower decompiler.
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
 public class AppVocales {
-   public AppVocales() {
-   }
 
-   public static void main(String[] args) {
-      int totalVocales = false;
+    public static void main(String[] args) {
+        // Usamos AtomicInteger para evitar la necesidad de sincronización explícita
+        AtomicInteger contadorVocales = new AtomicInteger(0);
 
-      try {
-         int[] contadorVocales = new int[1];
-         CompletableFuture[] futuros = (CompletableFuture[])IntStream.rangeClosed(1, 826).mapToObj((id) -> {
-            return CompletableFuture.runAsync(() -> {
-               try {
-                  if (id % 50 == 0) {
-                     System.out.println("Procesando personaje con ID: " + id);
-                  }
+        try {
+            // Procesamos los personajes de manera asíncrona
+            CompletableFuture<?>[] futuros = IntStream.rangeClosed(1, 826)
+                    .mapToObj(id -> CompletableFuture.runAsync(() -> {
+                        try {
+                            if (id % 50 == 0) {
+                                System.out.println("Procesando personaje con ID: " + id);
+                            }
 
-                  Character personaje = ApiUtil.getCharacterById(id);
-                  int cuenta = contarVocales(personaje.name.toLowerCase());
-                  synchronized(contadorVocales) {
-                     contadorVocales[0] += cuenta;
-                  }
-               } catch (Exception var6) {
-                  System.err.println("Error al obtener el personaje con ID " + id + ": " + var6.getMessage());
-               }
+                            Character personaje = ApiUtil.getCharacterById(id);
+                            // Contamos las vocales en el nombre del personaje
+                            int cuenta = contarVocales(personaje.name.toLowerCase());
+                            // Sumamos al contador usando AtomicInteger
+                            contadorVocales.addAndGet(cuenta);
+                        } catch (Exception e) {
+                            System.err.println("Error al obtener el personaje con ID " + id + ": " + e.getMessage());
+                        }
+                    }))
+                    .toArray(CompletableFuture[]::new);
 
-            });
-         }).toArray((var0) -> {
-            return new CompletableFuture[var0];
-         });
-         CompletableFuture.allOf(futuros).join();
-         int totalVocales = contadorVocales[0];
-         System.out.println("\nCantidad total de vocales en todos los nombres de los personajes: " + totalVocales);
-      } catch (Exception var4) {
-         System.err.println("Ocurri\u00f3 un error al contar las vocales: " + var4.getMessage());
-      }
+            // Esperamos a que todos los futuros se completen
+            CompletableFuture.allOf(futuros).join();
 
-   }
+            // Mostramos el total de vocales
+            System.out.println("\nCantidad total de vocales en todos los nombres de los personajes: " + contadorVocales.get());
+        } catch (Exception e) {
+            System.err.println("Ocurrió un error al contar las vocales: " + e.getMessage());
+        }
+    }
 
-   private static int contarVocales(String nombre) {
-      int cuenta = 0;
-      char[] var5;
-      int var4 = (var5 = nombre.toCharArray()).length;
-
-      for(int var3 = 0; var3 < var4; ++var3) {
-         char c = var5[var3];
-         if (c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u') {
-            ++cuenta;
-         }
-      }
-
-      return cuenta;
-   }
+    private static int contarVocales(String nombre) {
+        int cuenta = 0;
+        for (char c : nombre.toCharArray()) {
+            if (c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u') {
+                cuenta++;
+            }
+        }
+        return cuenta;
+    }
 }
